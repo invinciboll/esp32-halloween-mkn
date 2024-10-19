@@ -4,12 +4,14 @@
 #include <hd44780.h>
 #include <hd44780ioClass/hd44780_I2Cexp.h> 
 
-#define BUTTON_PIN 15
+#define POMMES_BUTTON_PIN 15
+#define SCHNITZEL_BUTTON_PIN 4
 
 hd44780_I2Cexp lcd; 
 
 typedef struct {
-  int buttonState;
+  int pommesButtonState;
+  int schnitzelButtonState;
 } Message;
 
 Message message;
@@ -36,7 +38,8 @@ void setup() {
   lcd.clear();
   lcd.print("Sender Ready");
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(POMMES_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(SCHNITZEL_BUTTON_PIN, INPUT_PULLUP);
   WiFi.mode(WIFI_STA);  // Ensure Wi-Fi station mode
 
   if (esp_now_init() != ESP_OK) {
@@ -68,12 +71,32 @@ void setup() {
 }
 
 void loop() {
-  int buttonState = digitalRead(BUTTON_PIN);
+  // Read the button states
+  int pommesButtonState = digitalRead(POMMES_BUTTON_PIN);
+  int schnitzelButtonState = digitalRead(SCHNITZEL_BUTTON_PIN);
 
-  if (buttonState == LOW) {
-    message.buttonState = 1;
-    Serial.println("Button pressed!");
+  bool send = false;
 
+  // If Pommes button is pressed
+  if (pommesButtonState == LOW) {
+    message.pommesButtonState = 1; // Pommes button pressed
+    send = true;  // Set flag to send message
+    Serial.println("Pommes Button pressed!");
+  } else {
+    message.pommesButtonState = 0; // Reset state when button is released
+  }
+
+  // If Schnitzel button is pressed
+  if (schnitzelButtonState == LOW) {
+    message.schnitzelButtonState = 1;  // Schnitzel button pressed
+    send = true;  // Set flag to send message
+    Serial.println("Schnitzel Button pressed!");
+  } else {
+    message.schnitzelButtonState = 0;  // Reset state when button is released
+  }
+
+  // Send the message if any button was pressed
+  if (send) {
     esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &message, sizeof(message));
 
     lcd.clear();
@@ -85,8 +108,6 @@ void loop() {
       Serial.println("Error Sending Message");
     }
 
-    delay(1000);  // Debounce
-  } else {
-    message.buttonState = 0;
+    delay(1000);  // Delay to debounce button
   }
 }
